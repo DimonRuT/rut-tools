@@ -18,7 +18,7 @@ LIB_DIR = "lib"
 SETTINGS_FILE = "settings.json"
 LOG_FILE = "rut_dev.log"
 COMMAND_PREFIX = "rut."
-CURRENT_VERSION = "1.1.0"
+CURRENT_VERSION = "1.1.0"  # Начальная версия, будет обновлена при check_for_updates
 VERSION_URL = "https://raw.githubusercontent.com/DimonRuT/rut-tools/main/version.txt"
 UPDATE_URL = "https://raw.githubusercontent.com/DimonRuT/rut-tools/main/rut.py"
 MIN_PYTHON_VERSION = (3, 8)
@@ -51,6 +51,8 @@ log_thread: Optional[threading.Thread] = None
 log_thread_stop = threading.Event()
 colors = COLOR_THEMES["lime"]
 
+latest_version_available: Optional[str] = None  # Глобальная переменная для статуса обновления
+
 
 def check_python_version() -> bool:
     return sys.version_info >= MIN_PYTHON_VERSION
@@ -71,18 +73,22 @@ def log(message: str, level: str = "info") -> None:
         log_queue.put(f"[{level.upper()}] {message}")
 
 
-def check_for_updates() -> Optional[str]:
+def check_for_updates() -> None:
+    """Проверяем версию и обновляем CURRENT_VERSION, сохраняем в latest_version_available."""
+    global CURRENT_VERSION, latest_version_available
     import urllib.request
     try:
         with urllib.request.urlopen(VERSION_URL, timeout=5) as resp:
-            latest = resp.read().decode().strip()
+            latest = resp.read().decode("utf-8").strip()
+        latest_version_available = latest
         if latest != CURRENT_VERSION:
             log(f"Обнаружена новая версия: {latest} (текущая: {CURRENT_VERSION})", "warning")
             log("Введите rut.core update чтобы обновиться", "info")
-            return latest
+        else:
+            log(f"Вы используете последнюю версию: {CURRENT_VERSION}", "success")
     except Exception as e:
         log(f"Ошибка проверки обновлений: {e}", "error")
-    return None
+        latest_version_available = None
 
 
 def get_username() -> str:
@@ -183,7 +189,18 @@ def print_ascii_art() -> None:
     link = "dsc.gg/ruttools"
     width = max(len(line) for line in lines)
     padding = (width - len(link)) // 2
-    print(colors["accent"] + ' ' * padding + link + '\n')
+    print(colors["accent"] + ' ' * padding + link)
+    # Вывод версии и статуса обновления:
+    version_str = f"Версия: {CURRENT_VERSION}"
+    if latest_version_available is None:
+        status = "Статус обновления неизвестен"
+    elif latest_version_available == CURRENT_VERSION:
+        status = "Вы используете последнюю версию"
+    else:
+        status = f"Доступна новая версия {latest_version_available}"
+    status_line = f"{version_str} | {status}"
+    padding_status = (width - len(status_line)) // 2
+    print(colors["accent"] + ' ' * padding_status + status_line + '\n')
 
 
 def display_prompt(username: str, os_name: str) -> None:
@@ -249,17 +266,27 @@ def cmd_restart(args: List[str]) -> str:
 
 def cmd_update(args: List[str]) -> str:
     import urllib.request
+    global CURRENT_VERSION
     try:
         log("Загрузка новой версии...", "info")
+        # Скачиваем новую версию скрипта
         with urllib.request.urlopen(UPDATE_URL, timeout=10) as resp:
-            new_code = resp.read().decode()
+            new_code = resp.read().decode("utf-8")
 
-        with open(__file__, "w", encoding="utf-8") as f:
+        new_code = new_code.replace('\r\n', '\n')  # Убираем лишние переносы строк
+
+        # Записываем новый код
+        with open(__file__, "w", encoding="utf-8", newline='\n') as f:
             f.write(new_code)
+
+        # После успешного обновления - обновляем CURRENT_VERSION из version.txt
+        with urllib.request.urlopen(VERSION_URL, timeout=5) as resp:
+            CURRENT_VERSION = resp.read().decode("utf-8").strip()
 
         log("Обновление успешно. Перезапуск...", "success")
         os.execv(sys.executable, [sys.executable] + sys.argv)
     except Exception as e:
+        log(f"Ошибка обновления: {e}", "error")
         return f"{colors['error']}Ошибка обновления: {e}"
 
 
