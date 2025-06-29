@@ -19,8 +19,8 @@ SETTINGS_FILE = "settings.json"
 LOG_FILE = "rut_dev.log"
 COMMAND_PREFIX = "rut."
 CURRENT_VERSION = "1.1.0"
-VERSION_URL = "https://raw.githubusercontent.com/твой-юзер/rut-tools/main/version.txt"
-UPDATE_URL = "https://raw.githubusercontent.com/твой-юзер/rut-tools/main/rut.py"
+VERSION_URL = "https://raw.githubusercontent.com/DimonRuT/rut-tools/main/version.txt"
+UPDATE_URL = "https://raw.githubusercontent.com/DimonRuT/rut-tools/main/rut.py"
 MIN_PYTHON_VERSION = (3, 8)
 
 COLOR_THEMES = {
